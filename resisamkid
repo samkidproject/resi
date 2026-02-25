@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAMKID PROJECT - Resi Service</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .receipt-container { width: 380px; background: white; padding: 20px; }
+        @media (max-width: 400px) {
+            .receipt-container { width: 100%; }
+        }
+        /* Style untuk gambar QRIS agar rapi dan tajam */
+        #qrisImage { max-width: 200px; margin: 0 auto; display: block; border: 1px solid #eee; border-radius: 8px; }
+    </style>
+</head>
+<body class="p-4 pb-20">
+
+    <div class="max-w-md mx-auto">
+        <header class="mb-6 text-center">
+            <h1 class="text-2xl font-bold text-gray-800">SAMKID PROJECT</h1>
+            <p class="text-sm text-gray-500">Jasa Service Arloji & Jam Tangan</p>
+        </header>
+
+        <!-- Form Input -->
+        <div class="bg-white p-5 rounded-xl shadow-sm mb-6">
+            <h2 class="font-semibold mb-4 border-b pb-2 text-blue-600">Data Pelanggan</h2>
+            <div class="space-y-3">
+                <input type="text" id="custName" placeholder="Nama Pelanggan" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                <input type="text" id="watchType" placeholder="Tipe Jam (Contoh: Seiko 5)" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <h2 class="font-semibold mt-6 mb-4 border-b pb-2 text-blue-600">Item Jasa / Suku Cadang</h2>
+            <div id="itemInputs" class="space-y-3">
+                <!-- Item baris akan masuk ke sini melalui JS -->
+            </div>
+            
+            <button onclick="addItem()" class="mt-4 w-full py-2 border-2 border-dashed border-blue-500 text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition">
+                + Tambah Item
+            </button>
+        </div>
+
+        <!-- Tombol Aksi -->
+        <div class="grid grid-cols-2 gap-4">
+            <button onclick="generatePreview()" class="bg-gray-800 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-black transition">Preview Resi</button>
+            <button onclick="downloadResi()" id="btnDownload" class="bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg opacity-50 cursor-not-allowed" disabled>Download JPG</button>
+        </div>
+
+        <!-- Area Preview -->
+        <div id="previewArea" class="mt-10 flex justify-center hidden">
+            <div id="receiptTemplate" class="receipt-container shadow-2xl border border-gray-100">
+                <div class="text-center mb-6">
+                    <h2 class="text-xl font-bold uppercase tracking-tight">SAMKID PROJECT</h2>
+                    <p class="text-xs">Spesialis Service & Restorasi Arloji</p>
+                    <p class="text-[10px] text-gray-500 mt-1 uppercase">Bandar Lampung</p>
+                    <p class="text-[10px] text-gray-500">WhatsApp: 082374125554</p>
+                    <div class="border-b-2 border-black my-4"></div>
+                </div>
+
+                <div class="text-xs mb-4 space-y-1">
+                    <div class="flex justify-between"><span>No. Resi:</span> <span id="resNo" class="font-bold"></span></div>
+                    <div class="flex justify-between"><span>Tanggal:</span> <span id="resDate"></span></div>
+                    <div class="flex justify-between"><span>Pelanggan:</span> <span id="resCust" class="font-bold uppercase"></span></div>
+                    <div class="flex justify-between"><span>Unit:</span> <span id="resWatch"></span></div>
+                </div>
+
+                <table class="w-full text-xs mb-6">
+                    <thead>
+                        <tr class="border-b border-gray-300">
+                            <th class="text-left py-2 uppercase">Deskripsi Jasa</th>
+                            <th class="text-center py-2">Qty</th>
+                            <th class="text-right py-2 uppercase">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resItems">
+                        <!-- List item resi -->
+                    </tbody>
+                    <tfoot>
+                        <tr class="border-t-2 border-black">
+                            <td colspan="2" class="py-3 font-bold text-sm uppercase text-gray-800">Total Bayar</td>
+                            <td class="py-3 text-right font-bold text-sm text-gray-900" id="resTotal">Rp 0</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div class="text-center mb-6">
+                    <p class="text-[9px] font-bold mb-3 uppercase tracking-widest text-gray-600">Scan untuk Pembayaran (QRIS):</p>
+                    <!-- Link gambar diperbarui ke link langsung dari i.ibb.co agar bisa di-render html2canvas -->
+                    <img id="qrisImage" src="https://i.ibb.co.com/LXCnsmTY/qris-samkid.jpg" alt="QRIS SAMKID PROJECT" crossorigin="anonymous">
+                </div>
+
+                <div class="text-[10px] text-center text-gray-500 mt-4 border-t pt-4">
+                    <p>Terima kasih atas kunjungan Anda.</p>
+                    <p class="mt-1 font-bold text-black uppercase tracking-tight">* Garansi service berlaku selama 1 bulan.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Fungsi untuk menambah baris item input
+        function addItem() {
+            const id = Date.now();
+            const div = document.createElement('div');
+            div.id = `row-${id}`;
+            div.className = "flex gap-2 items-start bg-gray-50 p-3 rounded-lg border border-gray-100";
+            div.innerHTML = `
+                <div class="flex-1 space-y-2">
+                    <input type="text" placeholder="Jenis Service / Part" class="item-name w-full p-2 text-sm border rounded outline-none focus:border-blue-400">
+                    <div class="flex gap-2">
+                        <input type="number" placeholder="Qty" class="item-qty w-16 p-2 text-sm border rounded outline-none" value="1">
+                        <input type="number" placeholder="Harga Satuan" class="item-price flex-1 p-2 text-sm border rounded outline-none focus:border-blue-400">
+                    </div>
+                </div>
+                <button onclick="removeItem(${id})" class="text-red-400 p-2 hover:text-red-600 transition">✕</button>
+            `;
+            document.getElementById('itemInputs').appendChild(div);
+        }
+
+        function removeItem(id) {
+            const container = document.getElementById('itemInputs');
+            if (container.children.length > 1) {
+                document.getElementById(`row-${id}`).remove();
+            }
+        }
+
+        function formatIDR(number) {
+            return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(number);
+        }
+
+        // Fungsi untuk membuat tampilan pratinjau resi
+        function generatePreview() {
+            const name = document.getElementById('custName').value;
+            const watch = document.getElementById('watchType').value;
+            const rows = document.getElementById('itemInputs').children;
+
+            if (!name) {
+                alert("Silakan masukkan nama pelanggan.");
+                return;
+            }
+
+            const date = new Date();
+            const dateStr = date.getDate().toString().padStart(2, '0') + (date.getMonth() + 1).toString().padStart(2, '0') + date.getFullYear().toString().slice(-2);
+            document.getElementById('resNo').innerText = 'SKD-' + dateStr + '-' + Math.floor(100 + Math.random() * 900);
+            document.getElementById('resDate').innerText = date.toLocaleDateString('id-ID', { dateStyle: 'long' });
+            document.getElementById('resCust').innerText = name;
+            document.getElementById('resWatch').innerText = watch || '-';
+
+            const tbody = document.getElementById('resItems');
+            tbody.innerHTML = '';
+            let total = 0;
+
+            for (let row of rows) {
+                const itemName = row.querySelector('.item-name').value;
+                const qty = parseInt(row.querySelector('.item-qty').value) || 0;
+                const price = parseInt(row.querySelector('.item-price').value) || 0;
+                const subtotal = qty * price;
+                total += subtotal;
+
+                if (itemName) {
+                    tbody.innerHTML += `
+                        <tr class="border-b border-gray-50">
+                            <td class="py-2 capitalize font-medium text-gray-700">${itemName}</td>
+                            <td class="text-center py-2 text-gray-600">${qty}</td>
+                            <td class="text-right py-2 text-gray-900 font-semibold">${formatIDR(subtotal)}</td>
+                        </tr>
+                    `;
+                }
+            }
+
+            document.getElementById('resTotal').innerText = formatIDR(total);
+            document.getElementById('previewArea').classList.remove('hidden');
+            document.getElementById('btnDownload').disabled = false;
+            document.getElementById('btnDownload').classList.remove('opacity-50', 'cursor-not-allowed');
+            
+            // Scroll otomatis ke area preview agar terlihat di HP
+            window.scrollTo({ top: document.getElementById('previewArea').offsetTop - 20, behavior: 'smooth' });
+        }
+
+        // Fungsi mengunduh resi sebagai gambar JPG
+        async function downloadResi() {
+            const element = document.getElementById('receiptTemplate');
+            const btn = document.getElementById('btnDownload');
+            btn.innerText = "Mengunduh...";
+            
+            try {
+                // Menunggu sejenak agar gambar QRIS benar-benar dimuat oleh browser sebelum ditangkap
+                await new Promise(resolve => setTimeout(resolve, 800));
+                
+                const canvas = await html2canvas(element, {
+                    scale: 3, // Skala tinggi untuk kualitas gambar tajam
+                    useCORS: true, // Untuk mendukung pengambilan gambar dari URL luar
+                    backgroundColor: "#ffffff",
+                    allowTaint: false
+                });
+                
+                const link = document.createElement('a');
+                link.download = `Resi-SAMKID-${Date.now()}.jpg`;
+                link.href = canvas.toDataURL('image/jpeg', 0.95);
+                link.click();
+            } catch (err) {
+                alert("Gagal mengunduh gambar. Pastikan koneksi internet stabil agar gambar QRIS dapat dimuat.");
+                console.error(err);
+            } finally {
+                btn.innerText = "Download JPG";
+            }
+        }
+
+        // Inisialisasi baris pertama saat halaman dimuat
+        window.onload = addItem;
+    </script>
+</body>
+</html>
